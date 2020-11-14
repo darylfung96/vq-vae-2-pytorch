@@ -87,7 +87,7 @@ def train(epoch, loader, model, optimizer, scheduler, device):
 
 
 def main(args):
-    device = "cpu"
+    device = "cuda"
 
     args.distributed = dist.get_world_size() > 1
 
