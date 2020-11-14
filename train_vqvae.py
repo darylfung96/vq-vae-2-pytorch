@@ -1,7 +1,7 @@
 import argparse
 import sys
 import os
-import wandb
+# import wandb
 import torch
 from torch import nn, optim
 from torch.utils.data import DataLoader
@@ -38,7 +38,7 @@ def train(epoch, loader, model, optimizer, scheduler, device):
         loss = recon_loss + latent_loss_weight * latent_loss
         loss.backward()
 
-        wandb.log({'train loss': loss.item()})
+        # wandb.log({'train loss': loss.item()})
 
         if scheduler is not None:
             scheduler.step()
@@ -142,7 +142,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--n_gpu", type=int, default=1)
 
-    wandb.init()
+    # wandb.init()
 
     port = (
         2 ** 15
