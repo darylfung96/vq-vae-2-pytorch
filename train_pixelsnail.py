@@ -37,6 +37,7 @@ def train(args, epoch, loader, model, optimizer, scheduler, device):
             out, _ = model(bottom, condition=top)
 
         loss = criterion(out, target)
+        print(loss)
         loss.backward()
 
         if scheduler is not None:
@@ -88,7 +89,7 @@ if __name__ == '__main__':
 
     print(args)
 
-    device = 'cuda'
+    device = 'cpu'
 
     dataset = LMDBDataset(args.path)
     loader = DataLoader(

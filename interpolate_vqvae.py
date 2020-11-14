@@ -15,75 +15,38 @@ from scheduler import CycleScheduler
 import distributed as dist
 
 
-def train(epoch, loader, model, optimizer, scheduler, device):
-    if dist.is_primary():
-        loader = tqdm(loader)
+def interpolate(loader, model, device):
+    loader = tqdm(loader)
 
-    criterion = nn.MSELoss()
-
-    latent_loss_weight = 0.25
     sample_size = 25
-
-    mse_sum = 0
-    mse_n = 0
 
     for i, (img, label) in enumerate(loader):
         model.zero_grad()
 
         img = img.to(device)
 
-        out, latent_loss = model(img)
-        recon_loss = criterion(out, img)
-        latent_loss = latent_loss.mean()
-        loss = recon_loss + latent_loss_weight * latent_loss
-        loss.backward()
+        img_start = img[:-1]
+        img_target = img[1:]
 
-        wandb.log({'train loss': loss.item()})
+        out, _ = model.interpolate(img_start, img_target, 50)
 
-        if scheduler is not None:
-            scheduler.step()
-        optimizer.step()
+        if i % 100 == 0:
+            model.eval()
 
-        part_mse_sum = recon_loss.item() * img.shape[0]
-        part_mse_n = img.shape[0]
-        comm = {"mse_sum": part_mse_sum, "mse_n": part_mse_n}
-        comm = dist.all_gather(comm)
+            sample = img[:sample_size]
 
-        for part in comm:
-            mse_sum += part["mse_sum"]
-            mse_n += part["mse_n"]
+            with torch.no_grad():
+                out, _ = model(sample)
 
-        if dist.is_primary():
-            lr = optimizer.param_groups[0]["lr"]
-
-            loader.set_description(
-                (
-                    f"epoch: {epoch + 1}; mse: {recon_loss.item():.5f}; "
-                    f"latent: {latent_loss.item():.3f}; avg mse: {mse_sum / mse_n:.5f}; "
-                    f"lr: {lr:.5f}"
-                )
+            utils.save_image(
+                torch.cat([sample, out], 0),
+                f"sample/{str(i).zfill(5)}.png",
+                nrow=sample_size,
+                normalize=True,
+                range=(-1, 1),
             )
 
-            if i % 100 == 0:
-                model.eval()
-
-                sample = img[:sample_size]
-
-                with torch.no_grad():
-                    out, _ = model(sample)
-
-                utils.save_image(
-                    torch.cat([sample, out], 0),
-                    f"sample/{str(epoch + 1).zfill(5)}_{str(i).zfill(5)}.png",
-                    nrow=sample_size,
-                    normalize=True,
-                    range=(-1, 1),
-                )
-
-                example_images = [wandb.Image(image, caption=f"{epoch}_{i}") for image in out]
-                wandb.log({"Examples": example_images})
-
-                model.train()
+            model.train()
 
 
 def main(args):
@@ -131,11 +94,7 @@ def main(args):
             warmup_proportion=0.05,
         )
 
-    for i in range(args.epoch):
-        train(i, loader, model, optimizer, scheduler, device)
-
-        if dist.is_primary():
-            torch.save(model.state_dict(), f"checkpoint/vqvae_{str(i + 1).zfill(3)}.pt")
+    interpolate(loader, model, device)
 
 
 if __name__ == "__main__":
@@ -162,4 +121,4 @@ if __name__ == "__main__":
 
     print(args)
 
-    dist.launch(main, args.n_gpu, 1, 0, args.dist_url, args=(args,))
+    main(args)

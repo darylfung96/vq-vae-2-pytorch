@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
+from torchvision import datasets, transforms, utils
 
 import distributed as dist_fn
 
@@ -200,6 +201,28 @@ class VQVAE(nn.Module):
         dec = self.decode(quant_t, quant_b)
 
         return dec, diff
+
+    def interpolate(self, input, input_target, steps=50):
+        quant_t, quant_b, diff, _, _ = self.encode(input)
+        quant_t_target, quant_b_target, diff, _, _ = self.encode(input_target)
+
+        inter_quant_t = quant_t.view(input.shape[0], -1)
+        inter_quant_b = quant_b.view(input.shape[0], -1)
+
+        inter_quant_t_target = quant_t_target.view(input.shape[0], -1)
+        inter_quant_b_target = quant_b.view(input.shape[0], -1)
+
+        lin_t = torch.linspace(0, 1, steps).unsqueeze(1).unsqueeze(1)
+        inter_t = inter_quant_t + lin_t * (inter_quant_t_target - inter_quant_t)
+        inter_b = inter_quant_b + lin_t * (inter_quant_b_target - inter_quant_b)
+
+        inter_t = inter_t.view(steps, *quant_t.shape)
+        inter_b = inter_b.view(steps, *quant_b.shape)
+
+        for i in range(inter_t.shape[0]):
+            out = self.decode(inter_t[i], inter_b[i])
+            for j, im in enumerate(out):
+                utils.save_image(im, f'sample/testing/{i}_{j}.png', normalize=True, range=(-1, 1))
 
     def encode(self, input):
         enc_b = self.enc_b(input)

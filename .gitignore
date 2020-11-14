@@ -2,6 +2,12 @@
 __pycache__/
 *.py[cod]
 *$py.class
+.DS_Store
+.idea/
+sample/
+daryl/
+test_FACES/
+wandb/
 
 # C extensions
 *.so
