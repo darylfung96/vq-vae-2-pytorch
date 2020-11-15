@@ -1,7 +1,7 @@
 import argparse
 import sys
 import os
-# import wandb
+import wandb
 import torch
 from torch import nn, optim
 from torch.utils.data import DataLoader
@@ -38,7 +38,7 @@ def train(epoch, loader, model, optimizer, scheduler, device):
         loss = recon_loss + latent_loss_weight * latent_loss
         loss.backward()
 
-        # wandb.log({'train loss': loss.item()})
+        wandb.log({'train loss': loss.item()})
 
         if scheduler is not None:
             scheduler.step()
@@ -72,13 +72,13 @@ def train(epoch, loader, model, optimizer, scheduler, device):
                 with torch.no_grad():
                     out, _ = model(sample)
 
-                utils.save_image(
-                    torch.cat([sample, out], 0),
-                    f"sample/{str(epoch + 1).zfill(5)}_{str(i).zfill(5)}.png",
-                    nrow=sample_size,
-                    normalize=True,
-                    range=(-1, 1),
-                )
+                # utils.save_image(
+                #     torch.cat([sample, out], 0),
+                #     f"sample/{str(epoch + 1).zfill(5)}_{str(i).zfill(5)}.png",
+                #     nrow=sample_size,
+                #     normalize=True,
+                #     range=(-1, 1),
+                # )
 
                 example_images = [wandb.Image(image, caption=f"{epoch}_{i}") for image in out]
                 wandb.log({"Examples": example_images})
@@ -142,7 +142,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--n_gpu", type=int, default=1)
 
-    # wandb.init()
+    wandb.init()
 
     port = (
         2 ** 15
